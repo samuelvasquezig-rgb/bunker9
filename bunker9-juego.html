@@ -40,6 +40,8 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 .bar{height:.8em;background:#2a2230;border:1px solid var(--line)}
 .bar i{display:block;height:100%;width:100%;background:var(--accent);transition:width .15s}
 .bar i.low{background:var(--danger)}
+.bar.regen{height:.3em;margin-top:2px}
+.bar.regen i{background:var(--muted);transition:none}
 .stat.push{margin-left:auto;text-align:right}
 #banner{position:absolute;left:0;right:0;top:22%;text-align:center;font-family:var(--display);font-weight:700;font-size:clamp(14px,4cqw,36px);color:var(--accent);text-shadow:0 2px 0 #000,0 0 18px rgba(255,179,71,.4);pointer-events:none;opacity:0}
 #overlay{position:absolute;inset:0;z-index:5;display:grid;place-items:center;background:rgba(14,11,19,.78);padding:4cqw}
@@ -73,7 +75,7 @@ kbd{font-family:var(--display);font-size:11px;color:var(--fg);background:var(--p
     <div id="banner" aria-live="polite"></div>
     <div class="hud">
       <div class="stat hp"><span class="lbl">VIDA</span><div class="bar"><i id="hpBar"></i></div></div>
-      <div class="stat"><span class="lbl">MUNICIÓN</span><b id="ammoTxt">40</b></div>
+      <div class="stat"><span class="lbl">MUNICIÓN</span><b id="ammoTxt">40</b><div class="bar regen"><i id="regenBar"></i></div></div>
       <div class="stat"><span class="lbl">OLEADA</span><b id="waveTxt">1</b></div>
       <div class="stat push"><span class="lbl">PUNTOS</span><b id="scoreTxt">0</b></div>
     </div>
@@ -203,7 +205,9 @@ function sfx(n){if(!ac||muted)return;try{switch(n){
  case'zap':tone('sine',700,300,.15,.035);break;}}catch(e){}}
 
 /* ---------- estado ---------- */
-let state='menu',P,enemies,shots,items,fx,wave,score,kills,fireCd,flash,recoil,hurt,bob,waveDelay,bannerT=0,firing=false;
+let state='menu',P,enemies,shots,items,fx,wave,score,kills,fireCd,flash,recoil,hurt,bob,waveDelay,regen,bannerT=0,firing=false;
+// recarga automática: +1 bala cada AMMO_REGEN s mientras haya menos de AMMO_CAP
+const AMMO_REGEN=1.2,AMMO_CAP=20;
 const keys={};
 let best=0;try{best=+localStorage.getItem('bunker9-best')||0}catch(e){}
 
@@ -224,7 +228,7 @@ function nextWave(){
  toast(`Oleada ${wave}`,2)}
 function reset(){
  P={x:1.5,y:1.5,a:0,hp:100,ammo:40};enemies=[];shots=[];items=[];fx=[];
- wave=0;score=0;kills=0;fireCd=0;flash=0;recoil=0;hurt=0;bob=0;waveDelay=0;
+ wave=0;score=0;kills=0;fireCd=0;flash=0;recoil=0;hurt=0;bob=0;waveDelay=0;regen=0;
  nextWave();addItem('ammo',6.5,3.5)}
 
 /* ---------- disparo ---------- */
@@ -258,6 +262,7 @@ function update(dt){
  if(free(P.x+mx,P.y,.22))P.x+=mx;if(free(P.x,P.y+my,.22))P.y+=my;
  if(len>.1)bob+=dt*9*Math.min(1,len);
  fireCd-=dt;if(firing||keys.Space)shoot();
+ if(P.ammo<AMMO_CAP){regen+=dt;if(regen>=AMMO_REGEN){regen=0;P.ammo++}}else regen=0;
  flash-=dt;recoil=Math.max(0,recoil-dt*6);hurt=Math.max(0,hurt-dt);bannerT-=dt;
 
  for(const e of enemies){
@@ -375,10 +380,11 @@ function drawHud(){
  if(hurt>0){ctx.fillStyle=`rgba(255,40,60,${hurt*.9})`;ctx.fillRect(0,0,W,H)}
  if(P.hp<30&&state==='play'){const a=(.12+Math.sin(performance.now()/180)*.08);const g=ctx.createRadialGradient(W/2,H2,60,W/2,H2,200);g.addColorStop(0,'rgba(255,40,60,0)');g.addColorStop(1,`rgba(255,40,60,${a})`);ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
 }
-const hpBar=$('hpBar'),ammoTxt=$('ammoTxt'),waveTxt=$('waveTxt'),scoreTxt=$('scoreTxt'),banner=$('banner');
+const hpBar=$('hpBar'),regenBar=$('regenBar'),ammoTxt=$('ammoTxt'),waveTxt=$('waveTxt'),scoreTxt=$('scoreTxt'),banner=$('banner');
 function draw(){
  render();ctx.putImageData(img,0,0);drawGun();drawHud();
  hpBar.style.width=P.hp+'%';hpBar.classList.toggle('low',P.hp<30);
+ regenBar.style.width=(P.ammo<AMMO_CAP?regen/AMMO_REGEN*100:0)+'%';
  ammoTxt.textContent=P.ammo;waveTxt.textContent=wave;scoreTxt.textContent=score;
  banner.style.opacity=bannerT>0?Math.min(1,bannerT*2):0;
 }
