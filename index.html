@@ -59,6 +59,10 @@ canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rend
 #stick{position:absolute;left:4%;bottom:20%;width:22cqw;aspect-ratio:1;border-radius:50%;border:2px solid rgba(255,179,71,.35);background:rgba(14,11,19,.3)}
 #knob{position:absolute;left:50%;top:50%;width:40%;aspect-ratio:1;border-radius:50%;background:rgba(255,179,71,.55);transform:translate(-50%,-50%)}
 #fireBtn{position:absolute;right:4%;bottom:22%;width:17cqw;aspect-ratio:1;border-radius:50%;border:2px solid var(--danger);background:rgba(255,68,89,.25);color:var(--fg);font:700 clamp(9px,2.2cqw,14px) var(--display);touch-action:none}
+#pauseBtn{position:absolute;left:3%;top:4%;width:9cqw;aspect-ratio:1;border-radius:4px;border:2px solid var(--line);background:rgba(26,21,34,.7);color:var(--accent);font:700 clamp(10px,3cqw,20px) var(--display);touch-action:none}
+/* pantalla completa en móvil: sin marco y el canvas conserva su proporción */
+#screen:fullscreen{border:0;border-radius:0;box-shadow:none}
+#screen:fullscreen canvas{object-fit:contain}
 .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:0;padding:0;list-style:none;font-size:12px;color:var(--muted)}
 kbd{font-family:var(--display);font-size:11px;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-bottom-width:2px;padding:1px 6px;border-radius:3px;margin-right:4px}
 </style>
@@ -82,6 +86,7 @@ kbd{font-family:var(--display);font-size:11px;color:var(--fg);background:var(--p
     <div id="touch" hidden>
       <div id="stick"><div id="knob"></div></div>
       <button id="fireBtn" type="button">FUEGO</button>
+      <button id="pauseBtn" type="button" aria-label="Pausa">II</button>
     </div>
     <div id="overlay">
       <div class="card">
@@ -403,8 +408,13 @@ function showOverlay(kind){
  ovBtn.disabled=wait>0;
  setTimeout(()=>{ovBtn.disabled=false;ovBtn.focus({preventScroll:true})},wait)}
 function lock(){if(coarse)return;try{const p=cv.requestPointerLock();if(p&&p.catch)p.catch(()=>{})}catch(e){}}
-function start(){initAudio();if(ac&&ac.state==='suspended')ac.resume();reset();state='play';showOverlay(null);lock()}
-function resume(){state='play';showOverlay(null);lock()}
+// en móvil: pantalla completa y horizontal con el mismo toque que inicia (iOS no lo soporta y se ignora)
+function goFull(){if(!coarse||document.fullscreenElement||document.webkitFullscreenElement)return;
+ const el=$('screen'),rf=el.requestFullscreen||el.webkitRequestFullscreen;if(!rf)return;
+ try{const p=rf.call(el);const ori=()=>{try{const o=screen.orientation&&screen.orientation.lock&&screen.orientation.lock('landscape');if(o&&o.catch)o.catch(()=>{})}catch(e){}};
+  if(p&&p.then)p.then(ori,()=>{});else ori()}catch(e){}}
+function start(){initAudio();if(ac&&ac.state==='suspended')ac.resume();reset();state='play';showOverlay(null);goFull();lock()}
+function resume(){state='play';showOverlay(null);goFull();lock()}
 function pause(){if(state!=='play')return;state='paused';firing=false;showOverlay('pause')}
 function gameOver(){state='over';firing=false;if(score>best){best=score;try{localStorage.setItem('bunker9-best',best)}catch(e){}}
  try{document.exitPointerLock&&document.exitPointerLock()}catch(e){}showOverlay('over')}
@@ -427,10 +437,11 @@ addEventListener('blur',()=>{for(const k in keys)keys[k]=false;firing=false;paus
 /* táctil */
 if(coarse){
  $('touch').hidden=false;
- $('legend').innerHTML='<li><kbd>Joystick</kbd>moverse</li><li><kbd>Arrastra a la derecha</kbd>girar</li><li><kbd>FUEGO</kbd>disparar (mantén)</li><li>Mejor en horizontal</li>';
+ $('legend').innerHTML='<li><kbd>Joystick</kbd>moverse</li><li><kbd>Arrastra a la derecha</kbd>girar</li><li><kbd>FUEGO</kbd>disparar (mantén)</li><li><kbd>II</kbd>pausa</li><li>Mejor en horizontal</li>';
  const tl=$('touch'),knob=$('knob'),stick=$('stick'),fb=$('fireBtn');
  fb.addEventListener('pointerdown',e=>{e.stopPropagation();firing=true;initAudio()});
  fb.addEventListener('pointerup',()=>firing=false);fb.addEventListener('pointercancel',()=>firing=false);fb.addEventListener('pointerleave',()=>firing=false);
+ const pb=$('pauseBtn');pb.addEventListener('pointerdown',e=>e.stopPropagation());pb.addEventListener('click',pause);
  tl.addEventListener('pointerdown',e=>{
   if(state!=='play')return;const r=tl.getBoundingClientRect();
   if(e.clientX-r.left<r.width*.45&&touch.stickId==null){const sr=stick.getBoundingClientRect();touch.stickId=e.pointerId;touch.sx=sr.left+sr.width/2;touch.sy=sr.top+sr.height/2;touch.rad=sr.width*.4;moveStick(e)}
