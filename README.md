@@ -2,7 +2,7 @@
 
 Shooter en primera persona para el navegador: sobrevive a las oleadas de drones en un búnker subterráneo. Funciona en PC y en móvil, sin instalar nada.
 
-**Jugar:** se abre en el enlace de GitHub Pages de este repositorio.
+**Jugar:** https://samuelvasquezig-rgb.github.io/bunker9/
 
 ## Controles
 
